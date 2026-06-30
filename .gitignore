@@ -1,0 +1,19 @@
+# Secrets and local configurations
+.env
+.env.*
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Conda/Venv local data (if stored locally)
+.venv/
+env/
+
+# Metagenomic Data & Databases (Phase 2 preview - don't upload giant fastq/db files!)
+data/
+databases/
+outputs/

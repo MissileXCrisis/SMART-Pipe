@@ -1,0 +1,14 @@
+name: smartpipe
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - python-dotenv
+    - google-genai
+    - click  # or argparse (we'll use argparse natively, but click is great for later)
+    - pandas
+    - streamlit
