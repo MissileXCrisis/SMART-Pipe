@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from smartpipe.cli import parse_arguments
 from smartpipe.utils.system import audit_environment
-from smartpipe.utils.qc import run_quality_control
 
 def main():
     # Load environment variables from .env file securely
