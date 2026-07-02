@@ -1,13 +1,14 @@
 import os
 import sys
 import multiprocessing
-from pathlib import Path  # 👈 ADD THIS LINE HERE
+from pathlib import Path
 from dotenv import load_dotenv
 from smartpipe.cli import parse_arguments
 from smartpipe.utils.system import audit_environment
 from smartpipe.utils.qc import discover_and_pair_samples, qc_worker_wrapper
 from smartpipe.utils.database import setup_database
 from smartpipe.utils.profiler import run_taxonomic_profiling
+from smartpipe.utils.biostats import run_biostatistical_analysis  # 👈 ADD THIS IMPORT
 
 def main():
     load_dotenv()
@@ -59,25 +60,37 @@ def main():
     print("\n📊 Run Execution Summary:")
     print("---------------------------------------------")
     
-    # Process Profiling sequentially or dynamically for successfully QC'd samples
+    any_profiled = False
     for success, sample, message in qc_results:
         if success:
             print(f" ✅ Sample: {sample.ljust(15)} | QC: Passed")
-            
-            # Construct paths to the newly created clean files
             clean_r1 = os.path.join(args.output, f"{sample}_R1_clean.fastq.gz")
             clean_r2 = os.path.join(args.output, f"{sample}_R2_clean.fastq.gz")
             
-            # Trigger Taxonomic profiling
             prof_success, prof_msg = run_taxonomic_profiling(sample, clean_r1, clean_r2, args.db, args.output)
             if prof_success:
                 print(f"    └── 🧬 Taxonomic Profiling Matrix saved to: {Path(prof_msg).name}")
+                any_profiled = True
             else:
                 print(f"    └── ❌ Profiling Failed: {prof_msg}")
         else:
             print(f" ❌ Sample: {sample.ljust(15)} | QC: Failed ({message})")
             
     print("---------------------------------------------")
+    
+    # ==============================================================================
+    # 📊 Phase 4, Step 1: Trigger Biostatistical Synthesis
+    # ==============================================================================
+    if any_profiled:
+        abundance_folder = os.path.join(args.output, "abundance")
+        stats_success, stats_data = run_biostatistical_analysis(abundance_folder, args.output)
+        if stats_success:
+            print("🎉 Biostatistical analysis matrices calculated and stored!")
+        else:
+            print(f"❌ Biostatistical analysis failed: {stats_data}")
+    else:
+        print("[WARNING] No samples successfully completed profiling. Skipping statistics.")
+        
     print("🎉 Pipeline run stage finished successfully!")
 
 if __name__ == "__main__":
