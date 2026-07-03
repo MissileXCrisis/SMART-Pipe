@@ -8,7 +8,8 @@ from smartpipe.utils.system import audit_environment
 from smartpipe.utils.qc import discover_and_pair_samples, qc_worker_wrapper
 from smartpipe.utils.database import setup_database
 from smartpipe.utils.profiler import run_taxonomic_profiling
-from smartpipe.utils.biostats import run_biostatistical_analysis  # 👈 ADD THIS IMPORT
+from smartpipe.utils.biostats import run_biostatistical_analysis
+from smartpipe.utils.ai_report import generate_automated_report  # 👈 ADD THIS IMPORT
 
 def main():
     load_dotenv()
@@ -78,14 +79,25 @@ def main():
             
     print("---------------------------------------------")
     
-    # ==============================================================================
-    # 📊 Phase 4, Step 1: Trigger Biostatistical Synthesis
-    # ==============================================================================
+    # Trigger Biostatistical Synthesis
     if any_profiled:
         abundance_folder = os.path.join(args.output, "abundance")
         stats_success, stats_data = run_biostatistical_analysis(abundance_folder, args.output)
         if stats_success:
             print("🎉 Biostatistical analysis matrices calculated and stored!")
+            print("---------------------------------------------")
+            
+            # ==============================================================================
+            # 🔌 Phase 4, Step 2: Trigger Outbound AI Integration Layer
+            # ==============================================================================
+            ai_success, ai_payload = generate_automated_report(stats_data)
+            if ai_success:
+                print("✅ AI Interpretation Payload Received Successfully!")
+                print("\n--- Live Preview of Gemini Summary ---")
+                print(ai_payload)
+                print("--------------------------------------")
+            else:
+                print(f"❌ AI Synthesis Failed: {ai_payload}")
         else:
             print(f"❌ Biostatistical analysis failed: {stats_data}")
     else:
