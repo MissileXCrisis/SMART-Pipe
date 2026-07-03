@@ -9,7 +9,7 @@ from smartpipe.utils.qc import discover_and_pair_samples, qc_worker_wrapper
 from smartpipe.utils.database import setup_database
 from smartpipe.utils.profiler import run_taxonomic_profiling
 from smartpipe.utils.biostats import run_biostatistical_analysis
-from smartpipe.utils.ai_report import generate_automated_report  # 👈 ADD THIS IMPORT
+from smartpipe.utils.ai_report import generate_automated_report
 
 def main():
     load_dotenv()
@@ -87,17 +87,22 @@ def main():
             print("🎉 Biostatistical analysis matrices calculated and stored!")
             print("---------------------------------------------")
             
-            # ==============================================================================
-            # 🔌 Phase 4, Step 2: Trigger Outbound AI Integration Layer
-            # ==============================================================================
+            # Trigger Outbound AI Integration Layer with Guardrails
             ai_success, ai_payload = generate_automated_report(stats_data)
             if ai_success:
-                print("✅ AI Interpretation Payload Received Successfully!")
-                print("\n--- Live Preview of Gemini Summary ---")
-                print(ai_payload)
-                print("--------------------------------------")
+                # ✍️ Phase 4, Step 4: Write Narrative Output safely to file
+                report_dir = Path(args.output) / "reports"
+                os.makedirs(report_dir, exist_ok=True)
+                report_file = report_dir / "automated_summary.md"
+                
+                with open(report_file, "w") as f:
+                    f.write("# SMART-Pipe Automated Microbial Ecology Report\n\n")
+                    f.write(ai_payload)
+                    
+                print(f"🎉 Production Summary Report compiled successfully!")
+                print(f"📄 Saved to: {report_file}")
             else:
-                print(f"❌ AI Synthesis Failed: {ai_payload}")
+                print(f"❌ AI Synthesis Blocked: {ai_payload}")
         else:
             print(f"❌ Biostatistical analysis failed: {stats_data}")
     else:

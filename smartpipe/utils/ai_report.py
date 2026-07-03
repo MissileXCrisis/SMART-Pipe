@@ -4,17 +4,11 @@ import json
 from google import genai
 
 def build_ecological_prompt(stats_data):
-    """
-    Programmatically serializes mathematical matrices into a structured, 
-    highly contextual prompt for the LLM.
-    ```
-    """
-    # Extract calculated metrics from our biostats dictionary payload
+    """Serializes mathematical matrices into a structured markdown prompt context."""
     master_matrix = stats_data.get("master_matrix", {})
     alpha_div = stats_data.get("alpha", {})
     beta_matrix = stats_data.get("beta", {})
 
-    # Construct the base prompt with rigorous systemic expectations
     prompt = (
         "You are an expert molecular bioinformatician and microbial ecologist analyzing a "
         "shotgun metagenomics pipeline run. Your job is to translate complex technical statistical arrays "
@@ -32,37 +26,63 @@ def build_ecological_prompt(stats_data):
         "- Paragraph 1 must detail internal community properties (Alpha Diversity), specifically contrast which sample is the most even/diverse and highlight the dominating taxa.\n"
         "- Paragraph 2 must synthesize community distance trends (Beta Diversity), explaining how similar or distinct the samples are from one another.\n"
         "- Maintain a neutral, professional, data-grounded scientific tone.\n"
+        "- Use the exact sample identifiers provided in the matrix (e.g., write 'SampleA' or 'Sample A').\n"
         "- DO NOT extrapolate or assume the presence of organisms not explicitly defined in the abundance matrix."
     )
     return prompt
 
-def generate_automated_report(stats_data):
+def verify_grounding_guardrails(report_text, stats_data):
     """
-    Initializes the Google GenAI client, crafts the context prompt, and 
-    handles the outbound integration layer call.
+    🛡️ Programmatic Post-Processing Validation Layer
+    Scans the LLM response text to ensure calculated numerical boundaries 
+    are accurately stated, accommodating minor stylistic spacing variations.
     """
-    # 1. Structural Security Check
-    if not os.environ.get("GEMINI_API_KEY"):
-        return False, "Aborting AI generation: GEMINI_API_KEY variable is missing from host environment."
+    alpha_div = stats_data.get("alpha", {})
+    
+    # Guardrail 1: Structural Integrity check for Sample Names (handles spacing variations)
+    for sample in alpha_div.keys():
+        spaced_variant = sample.replace("Sample", "Sample ") # Matches "Sample A"
+        
+        if (sample not in report_text) and (spaced_variant not in report_text):
+            print(f"⚠️ [GUARDRAIL-FAILED] Critical error: Sample identifier '{sample}' is entirely missing from the summary text.")
+            return False
+            
+    # Guardrail 2: Mathematical Soundness check for Diversity Scores
+    for sample, score in alpha_div.items():
+        score_3d = f"{score:.3f}"
+        score_2d = f"{score:.2f}"
+        
+        # Check if either the 2-decimal or 3-decimal representation is present
+        if (score_3d not in report_text) and (score_2d not in report_text):
+            # Also check if the AI represented it as a clean percentage (e.g., multiplying by 100 isn't common for Shannon, but defensive check)
+            print(f"⚠️ [GUARDRAIL-FAILED] Data mismatch: Calculated Shannon index for {sample} ({score_3d}) is absent or misstated in the text.")
+            return False
+            
+    print("🛡️ [GUARDRAIL-PASSED] Narrative text successfully grounded against numerical source matrices!")
+    return True
 
-    print("[AI-SYNTHESIS] Structuring engineering prompt payload...")
+def generate_automated_report(stats_data):
+    """Initializes the client, manages the payload transfer, and routes through guardrails."""
+    if not os.environ.get("GEMINI_API_KEY"):
+        return False, "Aborting AI generation: GEMINI_API_KEY variable is missing."
+
     prompt_payload = build_ecological_prompt(stats_data)
     
-    print("[AI-SYNTHESIS] Initializing Google GenAI Client connection...")
     try:
-        # Client natively auto-discovers os.environ["GEMINI_API_KEY"] as set up in Phase 1
         client = genai.Client()
-        
-        print("[AI-SYNTHESIS] Transmitting payload to gemini-3.5-flash...")
         response = client.models.generate_content(
             model='gemini-3.5-flash',
             contents=prompt_payload,
         )
         
-        if response.text:
+        if not response.text:
+            return False, "Received empty response from Gemini API."
+            
+        is_valid = verify_grounding_guardrails(response.text, stats_data)
+        if is_valid:
             return True, response.text
         else:
-            return False, "Received empty text payload response from Gemini API."
+            return False, "LLM summary failed post-processing validation checks."
             
     except Exception as e:
-        return False, f"Outbound API integration layer failed: {str(e)}"
+        return False, f"Outbound API layer exception: {str(e)}"
